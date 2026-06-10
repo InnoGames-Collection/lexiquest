@@ -1,7 +1,7 @@
 /* Shared multiple-choice quiz runner used by several LexiQuest games. */
 (function () {
   "use strict";
-  const { el, modal, recordResult, shuffled, statsRow } = LQ;
+  const { el, modal, recordResult, shuffled } = LQ;
 
   /**
    * opts: {
@@ -33,6 +33,12 @@
         const scoreline = el("div", { class: "scoreline" });
         const wrap = el("div", { class: "quiz-wrap" }, progress, qCard, scoreline);
         mount.appendChild(el("div", { class: "game-toolbar" },
+          opts.help
+            ? el("button", {
+                class: "btn", text: "How to play",
+                onclick: () => modal({ title: "How to play", body: opts.help }),
+              })
+            : null,
           el("button", { class: "btn", text: "Restart", onclick: newRun })
         ));
         mount.appendChild(wrap);
@@ -62,6 +68,7 @@
 
           function answer(c, btn) {
             btns.forEach((b) => { b.disabled = true; });
+            LQ.sound(c.correct ? "good" : "bad");
             if (c.correct) {
               btn.classList.add("correct");
               score++; streak++;
@@ -81,7 +88,9 @@
         }
 
         function finish() {
-          recordResult(opts.gameId, { won: score >= Math.ceil(items.length * 0.7), score });
+          const won = score >= Math.ceil(items.length * 0.7);
+          LQ.sound(won ? "win" : "bad");
+          recordResult(opts.gameId, { won, score });
           const body = (opts.resultBody && opts.resultBody(score, items.length)) ||
             `You got <b>${score} of ${items.length}</b> correct.`;
           qCard.innerHTML = "";

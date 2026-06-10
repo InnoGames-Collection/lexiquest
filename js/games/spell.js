@@ -12,6 +12,13 @@
       gameId: "spell",
       rounds: 10,
       choiceCols: 2,
+      help: `<b>Goal:</b> spot the one correct spelling among convincing fakes.<br><br>
+        <b>How to play:</b><br>
+        1. Read the definition in quotes.<br>
+        2. Exactly <b>one</b> of the four spellings is right — tap it.<br><br>
+        <b>Tips:</b> watch for doubled letters (a<u>cc</u>o<u>mm</u>odate),
+        sneaky vowel swaps (sep<u>a</u>rate, not “seperate”), and silent letters.
+        Say the word slowly in your head before choosing. 7+ of 10 wins.`,
       bank() { return shuffled(LQ_DATA.SPELL); },
       renderPrompt(item) {
         return el("div", null,

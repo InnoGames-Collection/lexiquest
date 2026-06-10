@@ -22,6 +22,13 @@
     render: LQ.mcqQuiz({
       gameId: "vocab",
       rounds: 10,
+      help: `<b>Goal:</b> answer all 10 “what does this word mean?” questions.<br><br>
+        <b>How to play:</b><br>
+        1. Read the word — the stars show its difficulty (★ easy → ★★★★★ expert).<br>
+        2. Tap the definition you believe is correct.<br>
+        3. A wrong pick reveals the true meaning — remember it, words come back around.<br><br>
+        Questions climb from everyday words to dictionary deep cuts.
+        Get 7+ right to win; a perfect 10 makes you a <b>Word Wizard</b>.`,
       bank() {
         // two questions from each difficulty tier, easy first
         const out = [];

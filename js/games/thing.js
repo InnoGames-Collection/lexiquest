@@ -12,6 +12,13 @@
       gameId: "thing",
       rounds: 10,
       choiceCols: 2,
+      help: `<b>Goal:</b> match each picture to its <b>precise</b> name.<br><br>
+        <b>How to play:</b><br>
+        1. Look at the picture.<br>
+        2. Pick the exact word for it — beware: the wrong answers are real words
+        for <i>similar</i> things (a sextant is not a compass!).<br>
+        3. Miss one and the right word is shown — that's how vocabulary grows.<br><br>
+        10 pictures per round; 7+ correct wins.`,
       bank() { return shuffled(LQ_DATA.THING); },
       renderPrompt(item) {
         return el("div", null,

@@ -1,0 +1,16 @@
+{
+  "name": "lexiquest",
+  "version": "2.0.0",
+  "description": "23 free word, number, math, and logic games by InnoSphere Technologies",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8741",
+    "lint": "eslint js sw.js",
+    "check": "node --check js/core.js && for f in js/data/*.js js/games/*.js; do node --check $f; done",
+    "data": "python3 tools/generate_data.py"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
+  }
+}

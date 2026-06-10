@@ -52,10 +52,11 @@
         const ang = (Math.PI * 2 * i) / 6 - Math.PI / 2;
         const x = CX + R * Math.cos(ang) - SZ / 2;
         const y = CY + R * Math.sin(ang) - SZ / 2;
+        // read the letter from the element so Shuffle stays in sync
         flower.appendChild(el("button", {
-          class: "petal", text: ltr,
+          class: "petal", text: ltr, "data-l": ltr,
           style: `left:${x}px; top:${y}px;`,
-          onclick: () => addLetter(ltr),
+          onclick: (e) => addLetter(e.currentTarget.dataset.l),
         }));
       });
 
@@ -83,12 +84,18 @@
       function showHelp() {
         modal({
           title: "How to play",
-          body: `Build words of <b>4+ letters</b> using only the seven letters shown.
-            Every word must include the gold <b>center letter</b>. Letters may be reused.<br><br>
-            4-letter words = 2 pts, longer words = 1 pt per letter,
-            and a word using <b>all seven letters</b> earns a +7 bonus.<br><br>
-            Reach <b>${targets[2]} pts</b> for a Bouquet — or ${targets[3]} for a Full Garden (max ${maxScore}).<br><br>
-            Tap the petals or type — on a phone, tap the word line above the flower to open your keyboard.`,
+          body: `<b>Goal:</b> reach <b>${targets[2]} points</b> (your GOAL) — push on to
+            ${targets[3]} for a Full Garden (max ${maxScore}).<br><br>
+            <b>How to play:</b><br>
+            1. Build words of <b>4+ letters</b> using only the seven petals — tap them or
+            type; on a phone, tap the word line above the flower to open your keyboard.<br>
+            2. Every word must contain the gold <b>center letter</b>. Letters may be
+            reused within a word.<br>
+            3. Press Enter or Submit to score it.<br><br>
+            <b>Scoring:</b> 4-letter word = 2 pts · longer words = 1 pt per letter ·
+            a word using <b>all seven letters</b> (a pangram) earns +7.<br><br>
+            <b>Tips:</b> stretch words with endings like -ED, -ING, -ER; Shuffle rearranges
+            the petals for fresh eyes; Finish ends the round and reveals missed words.`,
         });
       }
 
@@ -117,19 +124,22 @@
 
       function shufflePetals() {
         const petals = [...flower.querySelectorAll(".petal:not(.center)")];
-        const letters = petals.map((p) => p.textContent);
-        letters.sort(() => Math.random() - 0.5);
-        petals.forEach((p, i) => { p.textContent = letters[i]; });
+        const letters = LQ.shuffled(petals.map((p) => p.dataset.l));
+        petals.forEach((p, i) => {
+          p.dataset.l = letters[i];
+          p.textContent = letters[i];
+        });
       }
 
       function submit() {
         if (over) return;
         const w = current;
         current = "";
-        if (w.length < 4) { paint(); return toast("Words need at least 4 letters"); }
-        if (!w.includes(center)) { paint(); return toast("Must use the center letter"); }
-        if (found.includes(w)) { paint(); return toast("Already found"); }
-        if (!validWords.has(w)) { paint(); return toast("Not in word list"); }
+        if (w.length < 4) { paint(); LQ.sound("bad"); return toast("Words need at least 4 letters"); }
+        if (!w.includes(center)) { paint(); LQ.sound("bad"); return toast("Must use the center letter"); }
+        if (found.includes(w)) { paint(); LQ.sound("bad"); return toast("Already found"); }
+        if (!validWords.has(w)) { paint(); LQ.sound("bad"); return toast("Not in word list"); }
+        LQ.sound("good");
         const pts = wordScore(w, lettersSet);
         const isPangram = new Set(w).size === 7;
         found.push(w);

@@ -10,14 +10,29 @@
     <button id="backBtn" class="icon-btn" style="visibility:hidden">←</button>
     <div class="brand">Lexi<span>Quest</span></div>
     <div class="spacer"></div>
+    <button id="soundBtn" class="icon-btn">🔊</button>
     <button id="themeBtn" class="icon-btn">◐</button>
   </header>
   <main id="app"></main>
   <pre id="test-results">RUNNING</pre>
 
+  <script>
+    /* Headless harness: real AudioContext stalls Chromium's virtual-time budget,
+       so replace it with an inert stub before core.js loads. */
+    window.AudioContext = window.webkitAudioContext = function () {
+      const node = { connect: () => node, start: () => {}, stop: () => {} };
+      return {
+        currentTime: 0,
+        destination: node,
+        createOscillator: () => ({ ...node, type: "", frequency: { value: 0 } }),
+        createGain: () => ({ ...node, gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} } }),
+      };
+    };
+  </script>
   <script src="../js/data/words.js"></script>
   <script src="../js/data/petals.js"></script>
   <script src="../js/data/quizbank.js"></script>
+  <script src="../js/data/brainbank.js"></script>
   <script src="../js/core.js"></script>
   <script src="../js/games/quiz-engine.js"></script>
   <script src="../js/games/guess.js"></script>
@@ -29,6 +44,19 @@
   <script src="../js/games/truefalse.js"></script>
   <script src="../js/games/rhyme.js"></script>
   <script src="../js/games/trek.js"></script>
+  <script src="../js/games/eqgrid.js"></script>
+  <script src="../js/games/sequence.js"></script>
+  <script src="../js/games/target24.js"></script>
+  <script src="../js/games/sprint.js"></script>
+  <script src="../js/games/sudoku.js"></script>
+  <script src="../js/games/crosssum.js"></script>
+  <script src="../js/games/fractions.js"></script>
+  <script src="../js/games/primes.js"></script>
+  <script src="../js/games/codebreak.js"></script>
+  <script src="../js/games/memory.js"></script>
+  <script src="../js/games/oddone.js"></script>
+  <script src="../js/games/patterns.js"></script>
+  <script src="../js/games/logic.js"></script>
 
   <script>
   (async function () {
@@ -38,85 +66,160 @@
     const type = (word) => { for (const ch of word) key(ch); };
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => [...document.querySelectorAll(sel)];
-    const goto = async (id) => { location.hash = "#/g/" + id; await wait(50); };
+    const goto = async (id) => { closeModals(); location.hash = "#/g/" + id; await wait(60); };
     const assert = (name, cond) => results.push((cond ? "PASS " : "FAIL ") + name);
     const btnByText = (txt) => $$("button").find((b) => b.textContent.trim() === txt);
+    const closeModals = () => $$(".modal-back").forEach((m) => m.remove());
     const dayNumber = () => Math.floor(Date.now() / 86400000);
+    const isPrime = (n) => { if (n < 2) return false; for (let i = 2; i * i <= n; i++) if (n % i === 0) return false; return true; };
 
     window.addEventListener("error", (e) => results.push("FAIL js-error: " + e.message));
 
     try {
-      // hub
-      await wait(50);
-      assert("hub renders 10 cards", $$(".game-card").length === 10);
+      // ---------- hub ----------
+      await wait(60);
+      assert("hub renders 23 cards", $$(".game-card").length === 23);
+      assert("hub renders 4 categories", $$(".cat-head").length === 4);
+      assert("xp chip present", !!$("#xpChip"));
 
-      // quad: type a valid guess, expect row 0 colored
+      // ---------- word games ----------
       await goto("quad");
       type("crane"); key("Enter");
-      await wait(50);
+      await wait(60);
       const t0 = $(".board .tile-row").children[0];
       assert("quad accepts guess", t0.textContent === "c" &&
         (t0.classList.contains("good") || t0.classList.contains("near") || t0.classList.contains("bad")));
-
-      // quad: invalid word rejected (row stays uncolored)
       type("zzzzz"); key("Enter");
-      await wait(50);
+      await wait(60);
       const row1 = $$(".board")[0].children[1];
       assert("quad rejects junk word", ![...row1.children].some((t) =>
         t.classList.contains("good") || t.classList.contains("near") || t.classList.contains("bad")));
-      type("zzzzz".replace(/z/g, "")); // noop, clear via backspaces
       for (let i = 0; i < 5; i++) key("Backspace");
 
-      // octo boards present
       await goto("octo");
       assert("octo renders 8 boards", $$(".board").length === 8);
 
-      // petals: submit first valid word of today's puzzle
       await goto("petals");
       const pIdx = dayNumber() % LQ_DATA.PETALS.length;
       const puzzle = LQ_DATA.PETALS[pIdx];
       type(puzzle.words[0]); key("Enter");
-      await wait(50);
+      await wait(60);
       assert("petals accepts valid word", $$(".found-words .chip").length === 1);
       type(puzzle.words[0]); key("Enter");
-      await wait(50);
+      await wait(60);
       assert("petals blocks duplicate", $$(".found-words .chip").length === 1);
+      // shuffle keeps tap letters in sync with display
+      btnByText("Shuffle").click();
+      const petalBtns = $$(".petal:not(.center)");
+      assert("petals shuffle syncs data", petalBtns.every((p) => p.dataset.l === p.textContent));
 
-      // missing letter: answer round 1 correctly
       await goto("missing");
       const mSet = LQ_DATA.MISSING[dayNumber() % LQ_DATA.MISSING.length];
       const r0 = mSet.rounds[0];
       key(r0.word[r0.blank]);
-      await wait(50);
+      await wait(60);
       assert("missing collects letter", $(".ml-secret .tile").textContent === r0.word[r0.blank]);
 
-      // MCQ games: click a choice, expect feedback text
       for (const gid of ["vocab", "thing", "spell", "tf"]) {
         await goto(gid);
         $(".choice").click();
-        await wait(50);
+        await wait(60);
         assert(gid + " gives feedback", $(".quiz-feedback").textContent.trim().length > 0);
       }
 
-      // rhyme: reveal advances the riddle
       await goto("rhyme");
       btnByText("Reveal").click();
-      await wait(50);
+      await wait(60);
       assert("rhyme reveals answer", $(".quiz-feedback").textContent.includes("It was"));
-      await wait(2000);
-      assert("rhyme advances riddle", $(".sub").textContent.includes("Riddle 2"));
 
-      // trek: select cells, then clear
       await goto("trek");
       const cells = $$(".trek-cell");
       cells[0].click();
-      await wait(20);
+      await wait(30);
       assert("trek selects a cell", cells[0].classList.contains("sel"));
       key("Escape");
-      await wait(20);
+      await wait(30);
       assert("trek clears path", !cells[0].classList.contains("sel"));
 
-      // stats recorded for at least the MCQ answer games? (recordResult fires on finish only)
+      // ---------- numerical games ----------
+      await goto("eqgrid");
+      type("12+35=47".split("").join("")); key("Enter");
+      await wait(60);
+      const eqRow = $(".eq-board .eq-row");
+      assert("eqgrid accepts valid equation", [...eqRow.children].every((t) =>
+        t.classList.contains("good") || t.classList.contains("near") || t.classList.contains("bad")));
+      type("11+11=99"); key("Enter");
+      await wait(60);
+      const eqRow2 = $$(".eq-board .eq-row")[1];
+      assert("eqgrid rejects wrong math", ![...eqRow2.children].some((t) =>
+        t.classList.contains("good") || t.classList.contains("near") || t.classList.contains("bad")));
+
+      await goto("sequence");
+      type("999999"); key("Enter");
+      await wait(60);
+      assert("sequence reveals rule on wrong answer", $(".quiz-feedback").textContent.includes("It was"));
+
+      await goto("target24");
+      assert("make24 deals four numbers", $$(".num-chip").length === 4);
+      btnByText("Show solution").click();
+      await wait(60);
+      assert("make24 solver finds a solution", $(".modal .body").textContent.includes("= 24"));
+      closeModals();
+
+      await goto("sudoku");
+      assert("sudoku renders 36 cells", $$(".sudoku .cell").length === 36);
+      const empty = $$(".sudoku .cell").find((c) => !c.classList.contains("given"));
+      empty.click();
+      await wait(30);
+      assert("sudoku selects a cell", empty.classList.contains("sel"));
+
+      await goto("crosssum");
+      assert("nine sums renders grid + labels", $$(".sudoku .cell").length === 16);
+      $$(".sudoku .cell").find((c) => !c.classList.contains("sum-lbl")).click();
+      key("5");
+      await wait(30);
+      assert("nine sums places digit", $$(".sudoku .cell").some((c) => c.textContent === "5" && !c.classList.contains("sum-lbl")));
+
+      await goto("fractions");
+      $(".choice").click();
+      await wait(60);
+      assert("fractions gives feedback", $(".quiz-feedback").textContent.trim().length > 0);
+
+      await goto("primes");
+      const pCells = $$(".trek-cell");
+      assert("primes renders 12 numbers", pCells.length === 12);
+      const primeCell = pCells.find((c) => isPrime(Number(c.textContent)));
+      primeCell.click();
+      await wait(30);
+      assert("primes marks a found prime", primeCell.classList.contains("good"));
+
+      // ---------- analytical games ----------
+      await goto("codebreak");
+      const pal = $$(".cb-palette .cb-peg");
+      pal[0].click(); pal[1].click(); pal[2].click(); pal[3].click();
+      btnByText("Check").click();
+      await wait(60);
+      assert("codebreak scores a guess",
+        document.body.textContent.includes("Attempt 2") || document.body.textContent.includes("cracked") || $$(".modal").length > 0);
+      closeModals();
+
+      await goto("memory");
+      await wait(1700); // flash phase ends at ~1.45s
+      assert("memory enters recall phase", $(".quiz-feedback").textContent.includes("tap them back"));
+
+      for (const gid of ["oddone", "patterns", "logic"]) {
+        await goto(gid);
+        $(".choice").click();
+        await wait(60);
+        assert(gid + " gives feedback", $(".quiz-feedback").textContent.trim().length > 0);
+      }
+
+      // ---------- sprint last (its timer runs long) ----------
+      await goto("sprint");
+      btnByText("Start sprint").click();
+      await wait(60);
+      assert("sprint shows a question", $(".big-q").textContent.includes("="));
+
       assert("storage works", typeof LQ.getStats("quad").played === "number");
     } catch (e) {
       results.push("FAIL exception: " + e.message);

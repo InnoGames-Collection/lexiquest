@@ -75,11 +75,17 @@
         function showHelp() {
           modal({
             title: "How to play",
-            body: `Solve all <b>${boardCount} words at once</b>. Every guess is applied to every board.<br><br>
-              <span style="color:var(--good);font-weight:700">Green</span> = right letter, right spot.<br>
-              <span style="color:var(--near);font-weight:700">Gold</span> = right letter, wrong spot.<br><br>
-              You have ${maxGuesses} guesses. Type with your keyboard or tap the keys —
-              on a phone, tap the grid to open your keyboard.`,
+            body: `<b>Goal:</b> find all <b>${boardCount} hidden five-letter words</b> within ${maxGuesses} guesses.<br><br>
+              <b>How to play:</b><br>
+              1. Type any real five-letter word and press Enter — it plays on <b>every board at once</b>.<br>
+              2. Read the colors on each board separately:
+              <span style="color:var(--good);font-weight:700">green</span> = right letter, right spot ·
+              <span style="color:var(--near);font-weight:700">gold</span> = in that word, wrong spot ·
+              gray = not in that word.<br>
+              3. A solved board fades out; keep guessing for the rest.<br><br>
+              <b>Tips:</b> open with vowel-rich words like RAISE or ADIEU; the on-screen
+              keyboard remembers your best clue per letter. On a phone, tap the boards
+              to open your keyboard.`,
           });
         }
 
@@ -147,8 +153,21 @@
           if (!over) finish(false);
         }
 
+        function shareText(won) {
+          const name = boardCount > 4 ? "Octo Grid" : "Quad Grid";
+          const mark = { good: "🟩", near: "🟨", bad: "⬛" };
+          const grids = answers.map((a, b) => {
+            const upto = solvedAt[b] >= 0 ? solvedAt[b] : guesses.length - 1;
+            return guesses.slice(0, upto + 1)
+              .map((g) => scoreGuess(g, a).map((m) => mark[m]).join(""))
+              .join("\n");
+          }).join("\n\n");
+          return `LexiQuest ${name} ${won ? guesses.length : "X"}/${maxGuesses}\n\n${grids}`;
+        }
+
         function finish(won) {
           over = true;
+          LQ.sound(won ? "win" : "bad");
           recordResult(boardCount > 4 ? "octo" : "quad", { won, score: solvedAt.filter((x) => x >= 0).length });
           const reveal = answers
             .map((a, i) => `<b>${a.toUpperCase()}</b>${solvedAt[i] >= 0 ? " ✓" : " ✗"}`)
@@ -158,6 +177,7 @@
             body: `${reveal}<br><br>${won ? `Solved in ${guesses.length} guesses.` : "Better luck next time."}`,
             actions: [
               { label: "Play again", primary: true, onClick: () => newRound(Math.floor(Math.random() * 1e6) + 1) },
+              { label: "Share", onClick: () => LQ.share(shareText(won)) },
               { label: "Close" },
             ],
           });

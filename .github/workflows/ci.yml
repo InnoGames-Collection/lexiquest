@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax check
+        run: |
+          set -e
+          for f in js/core.js js/data/*.js js/games/*.js sw.js; do
+            node --check "$f"
+          done
+
+      - name: Install lint tooling
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npx eslint js sw.js
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+
+      - name: Smoke tests (all 23 games)
+        run: |
+          python3 -m http.server 8741 &
+          sleep 1
+          "${{ steps.chrome.outputs.chrome-path }}" \
+            --headless=new --no-sandbox --disable-gpu \
+            --virtual-time-budget=30000 \
+            --dump-dom http://localhost:8741/test/smoke.html 2>/dev/null \
+            | python3 -c "
+          import sys, re
+          html = sys.stdin.read()
+          m = re.search(r'<pre id=\"test-results\">(.*?)</pre>', html, re.S)
+          out = m.group(1) if m else 'NO RESULTS'
+          print(out)
+          sys.exit(0 if 'ALL_PASS' in out and 'FAIL' not in out else 1)
+          "

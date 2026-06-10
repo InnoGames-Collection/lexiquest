@@ -1,86 +1,88 @@
-# LexiQuest — Free Word Games
+# LexiQuest — Free Word, Number, Math & Logic Games
 
 **By InnoSphere Technologies**
 
-Ten free, fully playable word games inspired by the most popular puzzle formats
-at Merriam-Webster Games (Quordle, Octordle, Blossom, The Missing Letter,
-How Strong Is Your Vocabulary?, Name That Thing, Spell It, True or False,
-Twofer Goofer–style rhyme riddles, and word-path puzzles). All names, art, and
-question content are original.
+23 free, fully playable browser games across four categories. Installable as a
+PWA, fully playable offline, no account, no ads, zero runtime dependencies.
 
 ## The games
 
-| Game | Inspired by | How it plays |
-|---|---|---|
-| 🟩 Quad Grid | Quordle | Solve 4 five-letter words at once in 9 guesses |
-| 🐙 Octo Grid | Octordle | 8 words at once in 13 guesses |
-| 🌼 Petal Power | Blossom | Build 4+ letter words from 7 letters; center letter required; pangram bonus |
-| 🔎 The Missing Letter | The Missing Letter | Fill each word's missing letter; together they spell a secret word |
-| 💪 Vocabulary Strength | How Strong Is Your Vocabulary? | 10 definition MCQs with rising difficulty and a strength rank |
-| 🏺 Name That Picture | Name That Thing | Match the picture to the precise word |
-| 🐝 Spell Check | Spell It | Pick the one correct spelling among convincing traps |
-| ⚖️ Fact or Fib | True or False | Judge word-meaning statements, with explanations |
-| 🎶 Rhyme Twins | Twofer Goofer | Each riddle's answer is a rhyming word pair |
-| 🏔️ Word Trek | Pilgrim / Boggle | Trace adjacent-letter paths in a 4×4 grid against the clock |
+**🔤 Word** — Quad Grid (4 simultaneous word guesses), Octo Grid (8 boards),
+Petal Power (7-letter flower, pangram bonus), The Missing Letter (secret-word
+gimmick), Vocabulary Strength, Name That Picture, Spell Check, Fact or Fib,
+Rhyme Twins, Word Trek (timed letter-path grid).
+
+**🔢 Numerical** — Equation Grid (guess the hidden equation), Number Sequence
+(find the rule), Make 24 (combine four numbers, built-in solver), Digit Sprint
+(60-second mental math with streak bonuses).
+
+**🧮 Mathematical** — Mini Sudoku (6×6, uniqueness-checked generator, two
+difficulties), Nine Sums (place 1-9 to match row/column sums), Fraction Duel,
+Prime Hunter (timed prime spotting with strikes).
+
+**🧠 Analytical** — Code Breaker (Mastermind-style deduction), Memory Matrix
+(growing flash-recall grids), Odd One Out, Pattern Next (generated symbol
+sequences), Logic Riddles.
+
+## Platform features
+
+- **Four-category hub** with per-game stats (played / won / best / streak)
+- **XP and levels** earned across all games, persisted locally
+- **Daily seeds**: puzzle rotation tied to the date, plus unlimited practice
+- **Shareable results** (emoji grids) via Web Share API with clipboard fallback
+- **Sound effects** (WebAudio synth, no assets) with mute toggle
+- **PWA**: installable, offline-first service worker, themed icons
+- **Mobile-first**: responsive layouts, touch keyboards via hidden-input
+  catcher, safe-area insets, 16px inputs (no iOS zoom), `touch-action` tuning
+- **Accessibility**: aria labels/roles, focus-visible outlines, keyboard
+  navigation on the hub and grids, `prefers-reduced-motion` support
+- **Light/dark theme** following system preference
 
 ## Run it
 
-No build, no dependencies — it's a static site:
-
 ```sh
-cd lexiquest
-python3 -m http.server 8741
-# open http://localhost:8741
+npm start            # python3 http.server on :8741
+# or just open index.html — plain scripts, no build step
 ```
 
-Opening `index.html` directly from the file system also works (plain scripts,
-no modules).
+## Quality gates
 
-## Deploy (Vercel)
+```sh
+npm run check        # node --check every JS file
+npm run lint         # eslint (flat config, no-undef/eqeqeq/no-var/...)
+# browser smoke tests (~45 assertions across all 23 games):
+npm start &
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --virtual-time-budget=30000 \
+  --dump-dom http://localhost:8741/test/smoke.html | grep -E 'PASS|FAIL|DONE'
+```
 
-The repo is a plain static site — Vercel needs **no build step**:
-
-1. Push this repo to GitHub.
-2. In Vercel: **Add New → Project → Import** the repo.
-3. Framework preset: **Other**. Leave *Build Command* empty and
-   *Output Directory* empty (root). Deploy.
-
-`vercel.json` already sets cache headers for the generated word data and
-basic security headers. Every push to `main` redeploys automatically.
-
-## Features
-
-- Daily puzzles: seed rotates with the date, plus unlimited practice rounds
-- Full physical-keyboard and on-screen-keyboard support
-- Per-game stats (played / won / best / streak) persisted in `localStorage`
-- Light & dark theme (follows system preference, toggle in header)
-- Responsive layout, works on mobile widths
-- Zero network calls, zero tracking, no account
+CI (`.github/workflows/ci.yml`) runs all three gates on every push and PR.
 
 ## Architecture
 
 ```
-index.html            app shell; script load order = hub order
-css/style.css         shared design system (CSS variables, themes)
-js/core.js            hash router, game registry, storage/stats, modal/toast,
-                      shared on-screen keyboard
-js/games/quiz-engine.js  reusable MCQ quiz runner
-js/games/*.js         one self-registering IIFE per game (LQ.register)
-js/data/words.js      generated: 8.5k valid guesses, 774 answers, 50k trek words
-js/data/petals.js     generated: pre-computed petal puzzles
-js/data/quizbank.js   hand-authored question banks
+index.html              app shell; script order = hub order
+manifest.json, sw.js    PWA install + offline cache (bump CACHE on release)
+css/style.css           design system: CSS variables, themes, responsive clamps
+js/core.js              router, registry, storage/stats/XP, modal/toast/share,
+                        sound synth, keyboards, typeCatcher (mobile input)
+js/games/quiz-engine.js reusable MCQ runner (5 games build on it)
+js/games/*.js           one self-registering IIFE per game (LQ.register)
+js/data/words.js        generated: 8.5k guesses, 774 answers, 50k trek words
+js/data/petals.js       generated petal puzzles
+js/data/quizbank.js     authored word-quiz banks
+js/data/brainbank.js    authored logic/odd-one-out banks
 tools/generate_data.py  regenerates js/data from /usr/share/dict/words
-test/smoke.html       headless interaction test page (drives every game)
+test/smoke.html         headless interaction tests for every game
 ```
 
-## Tests
+## Deploy (Vercel)
 
-```sh
-python3 -m http.server 8741 &
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --virtual-time-budget=15000 \
-  --dump-dom http://localhost:8741/test/smoke.html | grep -E 'PASS|FAIL|DONE'
-```
+Static site, no build step: import the repo, framework preset **Other**, leave
+build command and output directory empty. `vercel.json` sets cache and security
+headers; `.vercelignore` keeps tests/tooling out of production. Every push to
+`main` redeploys.
 
-16 interaction assertions cover every game (guess validation, duplicate
-rejection, scoring, reveal/advance flows, path selection, storage).
+When releasing, bump the `CACHE` version in `sw.js` so installed PWAs pick up
+the new assets.

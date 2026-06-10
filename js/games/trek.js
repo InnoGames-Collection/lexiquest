@@ -50,7 +50,7 @@
       const grid = dice.map((d) => d[Math.floor(rnd() * d.length)]);
 
       let path = [];
-      let found = [];
+      const found = [];
       let score = 0;
       let secondsLeft = ROUND_SECONDS;
       let over = false;
@@ -79,11 +79,17 @@
       function showHelp() {
         modal({
           title: "How to play",
-          body: `Tap adjacent letters (including diagonals) to trace a word of
-            <b>3+ letters</b>, then submit. Each tile can be used once per word.
-            “Qu” counts as two letters.<br><br>
-            3-4 letters = 1 pt · 5 = 2 · 6 = 3 · 7 = 5 pts.<br>
-            Find as many words as you can in ${ROUND_SECONDS / 60} minutes!`,
+          body: `<b>Goal:</b> score 10+ points before the ${ROUND_SECONDS / 60}-minute
+            clock runs out.<br><br>
+            <b>How to play:</b><br>
+            1. Tap letters that touch each other (sideways or <b>diagonally</b>) to
+            trace a word of 3+ letters — your word builds at the top.<br>
+            2. Tap a selected tile again to backtrack to it; Clear (or Esc) starts over.<br>
+            3. Tap Submit (or Enter) to score the word. Each tile may be used once
+            per word; “Qu” counts as two letters.<br><br>
+            <b>Scoring:</b> 3-4 letters = 1 pt · 5 = 2 · 6 = 3 · 7 = 5 pts.<br><br>
+            <b>Tips:</b> hunt plurals (-S) and past tenses (-ED) of words you already
+            found; common letters like E, S, T anchor long chains.`,
         });
       }
 

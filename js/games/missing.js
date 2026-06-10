@@ -2,7 +2,7 @@
    letters spell a secret word. */
 (function () {
   "use strict";
-  const { el, toast, modal, typeCatcher, recordResult, dayNumber, statsRow } = LQ;
+  const { el, modal, typeCatcher, recordResult, dayNumber } = LQ;
 
   function render(mount) {
     let cleanup = null;
@@ -40,10 +40,15 @@
       function showHelp() {
         modal({
           title: "How to play",
-          body: `Each word below is shown with <b>one letter missing</b> — the clue describes
-            the full word. Type the missing letter.<br><br>
-            Solve all ${set.rounds.length} words and the missing letters, in order,
-            spell a <b>secret word</b>!`,
+          body: `<b>Goal:</b> solve all ${set.rounds.length} words and uncover the
+            <b>secret word</b> their missing letters spell.<br><br>
+            <b>How to play:</b><br>
+            1. Read the clue in quotes — it describes the full word.<br>
+            2. One tile is empty (blue border). Type the letter that belongs there —
+            keyboard, on-screen keys, or tap the word card on a phone.<br>
+            3. Each solved word adds its missing letter to the secret word at the top.<br><br>
+            <b>Tip:</b> wrong guesses cost nothing — say the word in your head with
+            different letters until one clicks.`,
         });
       }
 

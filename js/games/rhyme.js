@@ -31,11 +31,15 @@
       function showHelp() {
         modal({
           title: "How to play",
-          body: `Each clue describes a pair of <b>rhyming words</b>
-            (like “an overweight feline” → <b>fat cat</b>).<br><br>
-            Type both words — on a phone, tap the letter tiles to open your keyboard.
-            You get ${MAX_TRIES} tries per riddle, and a hint
-            reveals the first letters. Solve ${TOTAL} riddles to finish the set.`,
+          body: `<b>Goal:</b> solve ${TOTAL} riddles where every answer is a pair of
+            <b>rhyming words</b> — “an overweight feline” → <b>FAT CAT</b>.<br><br>
+            <b>How to play:</b><br>
+            1. Read the clue; the tiles show how long each word is.<br>
+            2. Type the first word, then the second — typing flows into the next word
+            automatically. On a phone, tap the tiles to open your keyboard.<br>
+            3. Press Enter or Guess. You get ${MAX_TRIES} tries per riddle.<br><br>
+            <b>Stuck?</b> Hint reveals both first letters (once per riddle);
+            Reveal shows the answer and moves on. Solve 3 of ${TOTAL} to win the set.`,
         });
       }
 

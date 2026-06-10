@@ -1,9 +1,16 @@
-/* LexiQuest core: routing, registry, storage, shared UI. */
+/* LexiQuest core: routing, registry, storage, shared UI, sound, PWA. */
 (function () {
   "use strict";
 
   const games = [];
   const byId = {};
+
+  const CATEGORIES = [
+    { id: "word", icon: "🔤", title: "Word Games", blurb: "Letters, spelling, and vocabulary." },
+    { id: "numerical", icon: "🔢", title: "Numerical Games", blurb: "Digits, sequences, and quick arithmetic." },
+    { id: "math", icon: "🧮", title: "Mathematical Games", blurb: "Sudoku, sums, fractions, and primes." },
+    { id: "analytical", icon: "🧠", title: "Analytical Games", blurb: "Logic, memory, and pattern reasoning." },
+  ];
 
   // ---------- utilities ----------
   function el(tag, attrs, ...children) {
@@ -52,7 +59,11 @@
     return arr[Math.floor((rnd || Math.random)() * arr.length)];
   }
 
-  // ---------- storage / stats ----------
+  function randInt(lo, hi, rnd) {
+    return lo + Math.floor((rnd || Math.random)() * (hi - lo + 1));
+  }
+
+  // ---------- storage / stats / xp ----------
   const KEY = "lexiquest.v1";
   function loadStore() {
     try { return JSON.parse(localStorage.getItem(KEY)) || {}; }
@@ -65,6 +76,13 @@
     const s = loadStore();
     return s.stats && s.stats[gameId] || { played: 0, won: 0, best: 0, streak: 0 };
   }
+  function getXP() {
+    const s = loadStore();
+    return s.xp || 0;
+  }
+  function levelFor(xp) {
+    return 1 + Math.floor(Math.sqrt(xp / 25));
+  }
   function recordResult(gameId, { won, score }) {
     const s = loadStore();
     s.stats = s.stats || {};
@@ -73,14 +91,74 @@
     if (won) { st.won++; st.streak++; } else { st.streak = 0; }
     if (typeof score === "number" && score > st.best) st.best = score;
     s.stats[gameId] = st;
+    const gained = (won ? 20 : 5) + Math.min(Math.max(score || 0, 0), 30);
+    const before = levelFor(s.xp || 0);
+    s.xp = (s.xp || 0) + gained;
     saveStore(s);
+    if (levelFor(s.xp) > before) {
+      sound("win");
+      toast(`⬆️ Level up! You are now level ${levelFor(s.xp)}`, 2600);
+    }
+    paintXP();
+  }
+  function paintXP() {
+    const chip = document.getElementById("xpChip");
+    if (!chip) return;
+    const xp = getXP();
+    chip.textContent = `Lv ${levelFor(xp)} · ${xp} XP`;
   }
 
-  // ---------- toast / modal ----------
+  // ---------- sound (tiny WebAudio synth, no assets) ----------
+  let audioCtx = null;
+  function isMuted() { return !!loadStore().muted; }
+  function sound(name) {
+    if (isMuted()) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtx;
+      const notes = {
+        click: [[700, 0, 0.04]],
+        good: [[660, 0, 0.08], [880, 0.08, 0.1]],
+        bad: [[240, 0, 0.16]],
+        win: [[523, 0, 0.1], [659, 0.1, 0.1], [784, 0.2, 0.1], [1047, 0.3, 0.18]],
+      }[name];
+      if (!notes) return;
+      for (const [freq, at, dur] of notes) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = name === "bad" ? "sawtooth" : "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + at + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + at);
+        osc.stop(ctx.currentTime + at + dur + 0.02);
+      }
+    } catch (e) { /* audio unavailable */ }
+  }
+  function toggleMute() {
+    const s = loadStore();
+    s.muted = !s.muted;
+    saveStore(s);
+    paintMute();
+  }
+  function paintMute() {
+    const b = document.getElementById("soundBtn");
+    if (b) {
+      b.textContent = isMuted() ? "🔇" : "🔊";
+      b.setAttribute("aria-label", isMuted() ? "Unmute sounds" : "Mute sounds");
+    }
+  }
+
+  // ---------- toast / modal / share ----------
   let toastTimer = null;
   function toast(msg, ms) {
     let t = document.getElementById("toast");
-    if (!t) { t = el("div", { id: "toast" }); document.body.appendChild(t); }
+    if (!t) {
+      t = el("div", { id: "toast", role: "status", "aria-live": "polite" });
+      document.body.appendChild(t);
+    }
     t.textContent = msg;
     t.classList.add("show");
     clearTimeout(toastTimer);
@@ -97,7 +175,7 @@
         onclick: () => { close(); if (a.onClick) a.onClick(); },
       })
     );
-    const m = el("div", { class: "modal" },
+    const m = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
       el("h3", { text: title }),
       el("div", { class: "body" }),
       el("div", { class: "actions" }, actionBtns)
@@ -108,7 +186,21 @@
     back.addEventListener("click", (e) => { if (e.target === back) close(); });
     back.appendChild(m);
     document.body.appendChild(back);
+    const first = m.querySelector("button");
+    if (first) first.focus();
     return { close };
+  }
+
+  async function share(text) {
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+    } catch (e) { /* user cancelled — fall through to clipboard */ }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Result copied — paste it anywhere!");
+    } catch (e) {
+      modal({ title: "Share your result", body: el("pre", { text }) });
+    }
   }
 
   function statsRow(pairs) {
@@ -121,11 +213,11 @@
     );
   }
 
-  // ---------- on-screen keyboard ----------
+  // ---------- on-screen keyboard (letters) ----------
   const KBD_ROWS = ["qwertyuiop", "asdfghjkl", "+zxcvbnm-"]; // + = enter, - = backspace
   function keyboard(onKey) {
     const keyEls = {};
-    const wrap = el("div", { class: "kbd" },
+    const wrap = el("div", { class: "kbd", role: "group", "aria-label": "On-screen keyboard" },
       KBD_ROWS.map((row) =>
         el("div", { class: "kbd-row" },
           row.split("").map((ch) => {
@@ -135,6 +227,7 @@
             const btn = el("button", {
               class: "key" + (isEnter || isBack ? " wide" : ""),
               text: label,
+              "aria-label": key,
               onclick: () => onKey(key),
             });
             if (!isEnter && !isBack) keyEls[ch] = btn;
@@ -145,7 +238,6 @@
     );
     return {
       element: wrap,
-      // state: 'good' | 'near' | 'bad' — never downgrade good
       setState(letter, state) {
         const b = keyEls[letter];
         if (!b) return;
@@ -165,80 +257,98 @@
     };
   }
 
-  // ---------- hidden input: summons the phone's native keyboard ----------
-  // Mobile soft keyboards only open when a real text field is focused, and many
-  // (e.g. GBoard) report key "Unidentified" on keydown — so letters are read by
-  // diffing the input's value against a sentinel instead of from key events.
-  const SENTINEL = " ";
+  // ---------- numeric keypad (digits + custom extras) ----------
+  function keypad(onKey, extras) {
+    const rows = [["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]];
+    const last = ["0"].concat(extras || []);
+    const wrap = el("div", { class: "kbd keypad", role: "group", "aria-label": "Number pad" },
+      rows.concat([last]).map((row) =>
+        el("div", { class: "kbd-row" },
+          row.map((k) => el("button", { class: "key num", text: k, onclick: () => onKey(k) }))
+        )
+      ),
+      el("div", { class: "kbd-row" },
+        el("button", { class: "key wide", text: "⌫", "aria-label": "Backspace", onclick: () => onKey("Backspace") }),
+        el("button", { class: "key wide go", text: "enter", "aria-label": "Enter", onclick: () => onKey("Enter") })
+      )
+    );
+    return wrap;
+  }
+
+  // ---------- hidden input that summons the phone keyboard ----------
   function typeCatcher(onKey, tapTarget) {
-    const input = el("input", {
-      class: "type-catcher",
-      type: "text",
-      autocapitalize: "none",
-      autocomplete: "off",
-      autocorrect: "off",
-      spellcheck: "false",
-      "aria-hidden": "true",
-      tabindex: "-1",
-      enterkeyhint: "go",
+    const inp = el("input", {
+      type: "text", class: "type-catcher", autocapitalize: "none",
+      autocomplete: "off", autocorrect: "off", spellcheck: "false",
+      "aria-hidden": "true", tabindex: "-1", enterkeyhint: "send",
     });
-    function reset() {
-      input.value = SENTINEL;
-      try { input.setSelectionRange(SENTINEL.length, SENTINEL.length); } catch (e) { /* unsupported */ }
-    }
-    input.addEventListener("focus", reset);
-    input.addEventListener("input", () => {
-      const v = input.value;
-      if (v.length < SENTINEL.length) onKey("Backspace");
-      else for (const ch of v.slice(SENTINEL.length)) {
-        if (/^[a-z]$/i.test(ch)) onKey(ch.toLowerCase());
-      }
-      reset();
+    inp.addEventListener("input", () => {
+      const v = inp.value;
+      inp.value = "";
+      for (const ch of v) if (/^[a-z0-9]$/i.test(ch)) onKey(ch.toLowerCase());
     });
-    input.addEventListener("keydown", (e) => {
-      // while the catcher is focused it owns all keys; without this, physical
-      // keystrokes would also reach the games' document-level handlers
+    inp.addEventListener("keydown", (e) => {
+      // stop bubbling so document-level handlers don't double-process
       e.stopPropagation();
-      if (e.key === "Enter") { e.preventDefault(); onKey("Enter"); }
+      if (e.key === "Enter" || e.key === "Backspace") {
+        e.preventDefault();
+        onKey(e.key);
+      }
     });
-    input.addEventListener("beforeinput", (e) => {
-      if (e.inputType === "insertLineBreak") { e.preventDefault(); onKey("Enter"); }
+    tapTarget.addEventListener("click", () => {
+      if (matchMedia("(pointer: coarse)").matches) inp.focus({ preventScroll: true });
     });
-    if (getComputedStyle(tapTarget).position === "static") tapTarget.style.position = "relative";
-    tapTarget.appendChild(input);
-    tapTarget.addEventListener("click", () => input.focus({ preventScroll: true }));
-    return input;
+    tapTarget.appendChild(inp);
+    return inp;
   }
 
   // ---------- registry & router ----------
   let activeCleanup = null;
 
   function register(def) {
+    def.category = def.category || "word";
     games.push(def);
     byId[def.id] = def;
   }
 
   function renderHub(app) {
+    const xp = getXP();
     app.appendChild(el("div", { class: "hub-intro" },
-      el("h1", { text: "LexiQuest Word Games" }),
-      el("p", { text: "Ten free word games by InnoSphere Technologies. New challenges every day. No account, no ads." })
+      el("h1", { text: "LexiQuest Games" }),
+      el("p", { text: "Free word, number, math, and logic games by InnoSphere Technologies." }),
+      el("div", { class: "hub-badges" },
+        el("span", { class: "badge", id: "xpChip", text: `Lv ${levelFor(xp)} · ${xp} XP` }),
+        el("span", { class: "badge", text: `${games.length} games` })
+      )
     ));
-    const grid = el("div", { class: "hub-grid" });
-    for (const g of games) {
-      const st = getStats(g.id);
-      const meta = st.played
-        ? `Played ${st.played} · Won ${st.won}` + (st.best ? ` · Best ${st.best}` : "")
-        : "Not played yet";
-      const card = el("div", { class: "game-card", onclick: () => { location.hash = "#/g/" + g.id; } },
-        el("div", { class: "icon", text: g.icon }),
-        el("h3", { text: g.title }),
-        el("p", { text: g.tagline }),
-        el("div", { class: "meta", text: meta }),
-        el("button", { class: "play", text: "Play" })
-      );
-      grid.appendChild(card);
+    for (const cat of CATEGORIES) {
+      const inCat = games.filter((g) => g.category === cat.id);
+      if (!inCat.length) continue;
+      app.appendChild(el("div", { class: "cat-head" },
+        el("h2", { text: cat.icon + " " + cat.title }),
+        el("p", { text: cat.blurb })
+      ));
+      const grid = el("div", { class: "hub-grid" });
+      for (const g of inCat) {
+        const st = getStats(g.id);
+        const meta = st.played
+          ? `Played ${st.played} · Won ${st.won}` + (st.best ? ` · Best ${st.best}` : "")
+          : "Not played yet";
+        grid.appendChild(el("div", {
+          class: "game-card", role: "link", tabindex: "0",
+          "aria-label": "Play " + g.title,
+          onclick: () => { location.hash = "#/g/" + g.id; },
+          onkeydown: (e) => { if (e.key === "Enter") location.hash = "#/g/" + g.id; },
+        },
+          el("div", { class: "icon", text: g.icon }),
+          el("h3", { text: g.title }),
+          el("p", { text: g.tagline }),
+          el("div", { class: "meta", text: meta }),
+          el("button", { class: "play", text: "Play", tabindex: "-1" })
+        ));
+      }
+      app.appendChild(grid);
     }
-    app.appendChild(grid);
   }
 
   function renderGame(app, g) {
@@ -246,7 +356,7 @@
       el("h2", { text: g.icon + "  " + g.title }),
       el("p", { class: "tagline", text: g.tagline })
     ));
-    const mount = el("div");
+    const mount = el("div", { class: "game-mount" });
     app.appendChild(mount);
     activeCleanup = g.render(mount, api) || null;
   }
@@ -279,19 +389,26 @@
 
   // ---------- public API ----------
   const api = {
-    el, toast, modal, keyboard, typeCatcher, statsRow,
-    mulberry32, dayNumber, shuffled, pick,
-    getStats, recordResult,
+    el, toast, modal, keyboard, keypad, typeCatcher, statsRow, share, sound,
+    mulberry32, dayNumber, shuffled, pick, randInt,
+    getStats, recordResult, getXP, levelFor,
     register,
   };
   window.LQ = api;
 
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
+    paintMute();
     document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+    const soundBtn = document.getElementById("soundBtn");
+    if (soundBtn) soundBtn.addEventListener("click", toggleMute);
     document.getElementById("backBtn").addEventListener("click", () => { location.hash = "#/"; });
     document.querySelector(".brand").addEventListener("click", () => { location.hash = "#/"; });
     window.addEventListener("hashchange", route);
     route();
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http") &&
+        !location.search.includes("nosw")) {
+      navigator.serviceWorker.register("sw.js").catch(() => { /* offline support optional */ });
+    }
   });
 })();
