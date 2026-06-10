@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexiQuest — Free Word Games by InnoSphere Technologies</title>
+  <meta name="description" content="Ten free, fully playable word games by InnoSphere Technologies: guessing grids, petal puzzles, vocabulary quizzes, rhyme riddles and more." />
+  <meta name="author" content="InnoSphere Technologies" />
+  <meta property="og:title" content="LexiQuest — Free Word Games" />
+  <meta property="og:description" content="Ten free word games by InnoSphere Technologies. New challenges every day. No account, no ads." />
+  <meta property="og:type" content="website" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🌼</text></svg>" />
+</head>
+<body>
+  <header class="lq-header">
+    <button id="backBtn" class="icon-btn" title="Back to games" style="visibility:hidden">←</button>
+    <div class="brand">Lexi<span>Quest</span></div>
+    <div class="spacer"></div>
+    <button id="themeBtn" class="icon-btn" title="Toggle theme">◐</button>
+  </header>
+  <main id="app"></main>
+  <footer class="lq-footer">
+    Made with ❤️ by <a href="https://innosphere-tech.com" target="_blank" rel="noopener">InnoSphere Technologies</a>
+    · © 2026 InnoSphere Technologies
+  </footer>
+
+  <!-- generated data -->
+  <script src="js/data/words.js"></script>
+  <script src="js/data/petals.js"></script>
+  <script src="js/data/quizbank.js"></script>
+  <!-- core -->
+  <script src="js/core.js"></script>
+  <!-- games (registration order = hub order) -->
+  <script src="js/games/quiz-engine.js"></script>
+  <script src="js/games/guess.js"></script>
+  <script src="js/games/petals.js"></script>
+  <script src="js/games/missing.js"></script>
+  <script src="js/games/vocab.js"></script>
+  <script src="js/games/thing.js"></script>
+  <script src="js/games/spell.js"></script>
+  <script src="js/games/truefalse.js"></script>
+  <script src="js/games/rhyme.js"></script>
+  <script src="js/games/trek.js"></script>
+</body>
+</html>

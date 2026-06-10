@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LexiQuest smoke test</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <header class="lq-header">
+    <button id="backBtn" class="icon-btn" style="visibility:hidden">←</button>
+    <div class="brand">Lexi<span>Quest</span></div>
+    <div class="spacer"></div>
+    <button id="themeBtn" class="icon-btn">◐</button>
+  </header>
+  <main id="app"></main>
+  <pre id="test-results">RUNNING</pre>
+
+  <script src="../js/data/words.js"></script>
+  <script src="../js/data/petals.js"></script>
+  <script src="../js/data/quizbank.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="../js/games/quiz-engine.js"></script>
+  <script src="../js/games/guess.js"></script>
+  <script src="../js/games/petals.js"></script>
+  <script src="../js/games/missing.js"></script>
+  <script src="../js/games/vocab.js"></script>
+  <script src="../js/games/thing.js"></script>
+  <script src="../js/games/spell.js"></script>
+  <script src="../js/games/truefalse.js"></script>
+  <script src="../js/games/rhyme.js"></script>
+  <script src="../js/games/trek.js"></script>
+
+  <script>
+  (async function () {
+    const results = [];
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const key = (k) => document.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+    const type = (word) => { for (const ch of word) key(ch); };
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => [...document.querySelectorAll(sel)];
+    const goto = async (id) => { location.hash = "#/g/" + id; await wait(50); };
+    const assert = (name, cond) => results.push((cond ? "PASS " : "FAIL ") + name);
+    const btnByText = (txt) => $$("button").find((b) => b.textContent.trim() === txt);
+    const dayNumber = () => Math.floor(Date.now() / 86400000);
+
+    window.addEventListener("error", (e) => results.push("FAIL js-error: " + e.message));
+
+    try {
+      // hub
+      await wait(50);
+      assert("hub renders 10 cards", $$(".game-card").length === 10);
+
+      // quad: type a valid guess, expect row 0 colored
+      await goto("quad");
+      type("crane"); key("Enter");
+      await wait(50);
+      const t0 = $(".board .tile-row").children[0];
+      assert("quad accepts guess", t0.textContent === "c" &&
+        (t0.classList.contains("good") || t0.classList.contains("near") || t0.classList.contains("bad")));
+
+      // quad: invalid word rejected (row stays uncolored)
+      type("zzzzz"); key("Enter");
+      await wait(50);
+      const row1 = $$(".board")[0].children[1];
+      assert("quad rejects junk word", ![...row1.children].some((t) =>
+        t.classList.contains("good") || t.classList.contains("near") || t.classList.contains("bad")));
+      type("zzzzz".replace(/z/g, "")); // noop, clear via backspaces
+      for (let i = 0; i < 5; i++) key("Backspace");
+
+      // octo boards present
+      await goto("octo");
+      assert("octo renders 8 boards", $$(".board").length === 8);
+
+      // petals: submit first valid word of today's puzzle
+      await goto("petals");
+      const pIdx = dayNumber() % LQ_DATA.PETALS.length;
+      const puzzle = LQ_DATA.PETALS[pIdx];
+      type(puzzle.words[0]); key("Enter");
+      await wait(50);
+      assert("petals accepts valid word", $$(".found-words .chip").length === 1);
+      type(puzzle.words[0]); key("Enter");
+      await wait(50);
+      assert("petals blocks duplicate", $$(".found-words .chip").length === 1);
+
+      // missing letter: answer round 1 correctly
+      await goto("missing");
+      const mSet = LQ_DATA.MISSING[dayNumber() % LQ_DATA.MISSING.length];
+      const r0 = mSet.rounds[0];
+      key(r0.word[r0.blank]);
+      await wait(50);
+      assert("missing collects letter", $(".ml-secret .tile").textContent === r0.word[r0.blank]);
+
+      // MCQ games: click a choice, expect feedback text
+      for (const gid of ["vocab", "thing", "spell", "tf"]) {
+        await goto(gid);
+        $(".choice").click();
+        await wait(50);
+        assert(gid + " gives feedback", $(".quiz-feedback").textContent.trim().length > 0);
+      }
+
+      // rhyme: reveal advances the riddle
+      await goto("rhyme");
+      btnByText("Reveal").click();
+      await wait(50);
+      assert("rhyme reveals answer", $(".quiz-feedback").textContent.includes("It was"));
+      await wait(2000);
+      assert("rhyme advances riddle", $(".sub").textContent.includes("Riddle 2"));
+
+      // trek: select cells, then clear
+      await goto("trek");
+      const cells = $$(".trek-cell");
+      cells[0].click();
+      await wait(20);
+      assert("trek selects a cell", cells[0].classList.contains("sel"));
+      key("Escape");
+      await wait(20);
+      assert("trek clears path", !cells[0].classList.contains("sel"));
+
+      // stats recorded for at least the MCQ answer games? (recordResult fires on finish only)
+      assert("storage works", typeof LQ.getStats("quad").played === "number");
+    } catch (e) {
+      results.push("FAIL exception: " + e.message);
+    }
+
+    document.getElementById("test-results").textContent =
+      results.join("\n") + "\nDONE " + (results.every((r) => r.startsWith("PASS")) ? "ALL_PASS" : "HAS_FAILURES");
+  })();
+  </script>
+</body>
+</html>
