@@ -1,5 +1,5 @@
-/* LexiQuest service worker — offline-first static cache. */
-const CACHE = "lexiquest-v2";
+/* LexiQuest service worker — network-first with offline cache fallback. */
+const CACHE = "lexiquest-v3";
 const ASSETS = [
   ".",
   "index.html",
@@ -52,18 +52,20 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+/* Network-first: players always get the newest code; the cache only serves
+   when offline. Prevents stale-mix breakage after deployments. */
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  if (new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(
-      (hit) => hit ||
-        fetch(e.request).then((res) => {
-          if (res.ok && new URL(e.request.url).origin === location.origin) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(e.request, copy));
-          }
-          return res;
-        })
-    )
+    fetch(e.request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });
