@@ -1,7 +1,7 @@
 /* Quad Grid & Octo Grid — solve N five-letter words at once (Quordle/Octordle-style). */
 (function () {
   "use strict";
-  const { el, toast, modal, keyboard, recordResult, mulberry32, dayNumber, shuffled } = LQ;
+  const { el, toast, modal, keyboard, typeCatcher, recordResult, mulberry32, dayNumber, shuffled } = LQ;
 
   const WORD_LEN = 5;
   const VALID = new Set(LQ_DATA.DICT5);
@@ -70,6 +70,7 @@
         mount.appendChild(status);
         mount.appendChild(boardsWrap);
         mount.appendChild(kbd.element);
+        typeCatcher(onKey, boardsWrap);
 
         function showHelp() {
           modal({
@@ -77,7 +78,8 @@
             body: `Solve all <b>${boardCount} words at once</b>. Every guess is applied to every board.<br><br>
               <span style="color:var(--good);font-weight:700">Green</span> = right letter, right spot.<br>
               <span style="color:var(--near);font-weight:700">Gold</span> = right letter, wrong spot.<br><br>
-              You have ${maxGuesses} guesses. Type with your keyboard or tap the keys.`,
+              You have ${maxGuesses} guesses. Type with your keyboard or tap the keys —
+              on a phone, tap the grid to open your keyboard.`,
           });
         }
 

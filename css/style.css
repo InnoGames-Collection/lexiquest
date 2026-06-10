@@ -140,6 +140,13 @@ button { font-family: inherit; }
 }
 
 /* ---------- on-screen keyboard ---------- */
+.type-catcher {
+  position: absolute; left: 0; bottom: 0;
+  width: 1px; height: 1px;
+  opacity: 0; border: 0; padding: 0;
+  font-size: 16px; /* below 16px iOS zooms the page when the field gains focus */
+  pointer-events: none;
+}
 .kbd { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 20px; }
 .kbd-row { display: flex; gap: 5px; }
 .key {

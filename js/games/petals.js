@@ -1,7 +1,7 @@
 /* Petal Power — build words from seven letters, always using the center letter. */
 (function () {
   "use strict";
-  const { el, toast, modal, recordResult, dayNumber, statsRow } = LQ;
+  const { el, toast, modal, typeCatcher, recordResult, dayNumber, statsRow } = LQ;
 
   const PUZZLES = LQ_DATA.PETALS;
 
@@ -87,7 +87,8 @@
             Every word must include the gold <b>center letter</b>. Letters may be reused.<br><br>
             4-letter words = 2 pts, longer words = 1 pt per letter,
             and a word using <b>all seven letters</b> earns a +7 bonus.<br><br>
-            Reach <b>${targets[2]} pts</b> for a Bouquet — or ${targets[3]} for a Full Garden (max ${maxScore}).`,
+            Reach <b>${targets[2]} pts</b> for a Bouquet — or ${targets[3]} for a Full Garden (max ${maxScore}).<br><br>
+            Tap the petals or type — on a phone, tap the word line above the flower to open your keyboard.`,
         });
       }
 
@@ -163,6 +164,11 @@
         }
       }
       document.addEventListener("keydown", physicalKey);
+      typeCatcher((key) => {
+        if (key === "Enter") return submit();
+        if (key === "Backspace") { current = current.slice(0, -1); paint(); return; }
+        if (lettersSet.has(key)) addLetter(key);
+      }, entry);
       return () => document.removeEventListener("keydown", physicalKey);
     }
 

@@ -165,6 +165,51 @@
     };
   }
 
+  // ---------- hidden input: summons the phone's native keyboard ----------
+  // Mobile soft keyboards only open when a real text field is focused, and many
+  // (e.g. GBoard) report key "Unidentified" on keydown — so letters are read by
+  // diffing the input's value against a sentinel instead of from key events.
+  const SENTINEL = " ";
+  function typeCatcher(onKey, tapTarget) {
+    const input = el("input", {
+      class: "type-catcher",
+      type: "text",
+      autocapitalize: "none",
+      autocomplete: "off",
+      autocorrect: "off",
+      spellcheck: "false",
+      "aria-hidden": "true",
+      tabindex: "-1",
+      enterkeyhint: "go",
+    });
+    function reset() {
+      input.value = SENTINEL;
+      try { input.setSelectionRange(SENTINEL.length, SENTINEL.length); } catch (e) { /* unsupported */ }
+    }
+    input.addEventListener("focus", reset);
+    input.addEventListener("input", () => {
+      const v = input.value;
+      if (v.length < SENTINEL.length) onKey("Backspace");
+      else for (const ch of v.slice(SENTINEL.length)) {
+        if (/^[a-z]$/i.test(ch)) onKey(ch.toLowerCase());
+      }
+      reset();
+    });
+    input.addEventListener("keydown", (e) => {
+      // while the catcher is focused it owns all keys; without this, physical
+      // keystrokes would also reach the games' document-level handlers
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); onKey("Enter"); }
+    });
+    input.addEventListener("beforeinput", (e) => {
+      if (e.inputType === "insertLineBreak") { e.preventDefault(); onKey("Enter"); }
+    });
+    if (getComputedStyle(tapTarget).position === "static") tapTarget.style.position = "relative";
+    tapTarget.appendChild(input);
+    tapTarget.addEventListener("click", () => input.focus({ preventScroll: true }));
+    return input;
+  }
+
   // ---------- registry & router ----------
   let activeCleanup = null;
 
@@ -234,7 +279,7 @@
 
   // ---------- public API ----------
   const api = {
-    el, toast, modal, keyboard, statsRow,
+    el, toast, modal, keyboard, typeCatcher, statsRow,
     mulberry32, dayNumber, shuffled, pick,
     getStats, recordResult,
     register,

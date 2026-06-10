@@ -1,7 +1,7 @@
 /* Rhyme Twins — every answer is a pair of rhyming words. */
 (function () {
   "use strict";
-  const { el, toast, modal, recordResult, dayNumber, shuffled, mulberry32 } = LQ;
+  const { el, toast, modal, typeCatcher, recordResult, dayNumber, shuffled, mulberry32 } = LQ;
 
   const MAX_TRIES = 4;
 
@@ -33,7 +33,8 @@
           title: "How to play",
           body: `Each clue describes a pair of <b>rhyming words</b>
             (like “an overweight feline” → <b>fat cat</b>).<br><br>
-            Type both words. You get ${MAX_TRIES} tries per riddle, and a hint
+            Type both words — on a phone, tap the letter tiles to open your keyboard.
+            You get ${MAX_TRIES} tries per riddle, and a hint
             reveals the first letters. Solve ${TOTAL} riddles to finish the set.`,
         });
       }
@@ -64,6 +65,7 @@
           el("p", { class: "sub", text: `Riddle ${qIdx + 1} of ${TOTAL} · ${MAX_TRIES} tries` }),
           el("p", { class: "prompt", text: "“" + item.clue + "”" }),
           slots,
+          el("p", { class: "sub center dim", text: "Tap the tiles to type" }),
           el("div", { class: "game-toolbar" },
             el("button", { class: "btn", text: "Hint", onclick: useHint }),
             el("button", { class: "btn primary", text: "Guess", onclick: submit }),
@@ -135,11 +137,9 @@
           setTimeout(nextRiddle, 1600);
         }
 
-        card._onKey = function (e) {
-          if (e.metaKey || e.ctrlKey || e.altKey) return;
-          if (e.key === "Enter") { e.preventDefault(); return submit(); }
-          if (e.key === "Backspace") {
-            e.preventDefault();
+        function handleKey(key) {
+          if (key === "Enter") return submit();
+          if (key === "Backspace") {
             const inp = inputs[active];
             const min = hinted ? 1 : 0;
             if (inp.typed.length > min) inp.typed = inp.typed.slice(0, -1);
@@ -147,14 +147,22 @@
             paint();
             return;
           }
-          if (/^[a-z]$/i.test(e.key)) {
-            e.preventDefault();
+          if (/^[a-z]$/.test(key)) {
             const inp = inputs[active];
-            if (inp.typed.length < inp.word.length) inp.typed += e.key.toLowerCase();
+            if (inp.typed.length < inp.word.length) inp.typed += key;
             if (inp.typed.length === inp.word.length && active < inputs.length - 1) active++;
             paint();
           }
+        }
+
+        card._onKey = function (e) {
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          if (e.key === "Enter" || e.key === "Backspace" || /^[a-z]$/i.test(e.key)) {
+            e.preventDefault();
+            handleKey(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+          }
         };
+        typeCatcher(handleKey, slots);
       }
 
       function finish() {

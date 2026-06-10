@@ -2,7 +2,7 @@
    letters spell a secret word. */
 (function () {
   "use strict";
-  const { el, toast, modal, recordResult, dayNumber, statsRow } = LQ;
+  const { el, toast, modal, typeCatcher, recordResult, dayNumber, statsRow } = LQ;
 
   function render(mount) {
     let cleanup = null;
@@ -121,6 +121,8 @@
       // on-screen letter buttons for touch devices
       const kbd = LQ.keyboard((key) => { if (/^[a-z]$/.test(key)) guess(key); });
       mount.appendChild(kbd.element);
+      // tapping the word card opens the phone's own keyboard as an alternative
+      typeCatcher((key) => { if (/^[a-z]$/.test(key)) guess(key); }, card);
 
       paintRound();
       return () => document.removeEventListener("keydown", physicalKey);
